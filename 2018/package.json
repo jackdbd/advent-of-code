@@ -1,0 +1,27 @@
+{
+  "name": "advent-of-code-2018",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "scripts": {
+    "build": "yarn format && tslint --project . && tsc",
+    "build:watch": "tsc --watch",
+    "clean": "rimraf dist/",
+    "format": "prettier --write 'src/**/*.ts'",
+    "lint": "tslint --project .",
+    "solve": "ts-node src/index.ts",
+    "tslint-check": "tslint-config-prettier-check ./tslint.json"
+  },
+  "dependencies": {
+    "ramda": "^0.26.1"
+  },
+  "devDependencies": {
+    "@types/node": "^10.12.15",
+    "prettier": "^1.15.3",
+    "rimraf": "^2.6.2",
+    "ts-node": "^7.0.1",
+    "tslint": "^5.11.0",
+    "tslint-config-prettier": "^1.17.0",
+    "typescript": "^3.2.2"
+  }
+}
