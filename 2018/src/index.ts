@@ -9,6 +9,7 @@ import { solve as solveDay05PartA } from './05/a'
 import { solve as solveDay05PartB } from './05/b'
 import { solve as solveDay06PartA } from './06/a'
 import { solve as solveDay06PartB } from './06/b'
+import { solve as solveDay09PartA } from './09/a'
 
 solveDay01PartA()
 solveDay01PartB()
@@ -26,3 +27,5 @@ solveDay05PartB()
 
 solveDay06PartA()
 solveDay06PartB()
+
+solveDay09PartA()
