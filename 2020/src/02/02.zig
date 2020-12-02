@@ -41,6 +41,43 @@ fn answer1(allocator: *mem.Allocator, dir: fs.Dir, sub_path: []const u8) !i32 {
     return result;
 }
 
+fn answer2(allocator: *mem.Allocator, dir: fs.Dir, sub_path: []const u8) !i32 {
+    var result: i32 = 0;
+    var iter = try utils.readFileLinesIter(allocator, dir, sub_path);
+    // defer allocator.free(iter.buffer);
+
+    while (iter.next()) |line| {
+        const groups = try utils.splitByte(allocator, line, ' ');
+        // defer allocator.free(groups);
+        const digits = try utils.splitByte(allocator, groups[0], '-');
+        // defer allocator.free(digits);
+        var idx0 = try fmt.parseInt(i32, digits[0], 10);
+        idx0 -= 1;
+        var idx1 = try fmt.parseInt(i32, digits[1], 10);
+        idx1 -=1;
+        const char = try utils.splitByte(allocator, groups[1], ':');
+        // defer allocator.free(char);
+        const password = groups[2];
+
+        // log.debug("line: {} (idx0: {}, idx1: {}, char: {}, password: {})", .{line, idx0, idx1, char[0], password});
+
+        var matches:i32 = 0;
+        for (password) |p, i| {
+            if (i == idx0 or i == idx1) {
+                if (p == char[0][0]) {
+                    // log.info("p: {} i: {}, idx0: {}, idx1: {}", .{p, i, idx0, idx1});
+                    matches += 1; 
+                }
+            }
+        }
+        const valid = if (matches == 1) true else false;
+        if (valid) {
+            result += 1;
+        }
+    }
+    return result;
+}
+
 pub fn main() !void {
     var timer = try std.time.Timer.start();
     const t0 = timer.lap();
@@ -49,7 +86,8 @@ pub fn main() !void {
     defer arena.deinit();
 
     // const a = try answer1(&arena.allocator, fs.cwd(), "sample1.txt");
-    const a = try answer1(&arena.allocator, fs.cwd(), "part1.txt");
+    // const a = try answer1(&arena.allocator, fs.cwd(), "part1.txt");
+    const a = try answer2(&arena.allocator, fs.cwd(), "part1.txt");
     log.info("Answer: {}", .{a});
 
     const t1 = timer.lap();
@@ -61,5 +99,10 @@ const testing = std.testing;
 
 test "part 1" {
     const a = try answer1(testing.allocator, fs.cwd(), "sample1.txt");
-    testing.expectEqual(@as(i32, 0), a);
+    testing.expectEqual(@as(i32, 2), a);
+}
+
+test "part 2" {
+    const a = try answer2(testing.allocator, fs.cwd(), "sample1.txt");
+    testing.expectEqual(@as(i32, 1), a);
 }

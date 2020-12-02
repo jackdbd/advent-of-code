@@ -3,6 +3,8 @@ const fs = std.fs;
 const log = std.log;
 const mem = std.mem;
 
+// TODO: do not use this file. Use the utils from 01 and move them to the root directory.
+
 /// Count the units of type `T` needed, if we want to split the single slice
 /// `in` into `c` slices, using a separator `b`. Useful for preallocating memory.
 /// Similar to std.fmt.count
@@ -48,35 +50,12 @@ pub fn splitByte(allocator: *mem.Allocator, buf: []const u8, b: u8) ![][]const u
     return slices;
 }
 
-pub fn readFileLines(allocator: *mem.Allocator, dir: fs.Dir, sub_path: []const u8) ![][]const u8 {
-    const slice = try readFile(allocator, dir, sub_path);
-    // TODO: we cannot call free here, otherwise we get a segmentation fault in
-    // the program. But if we don't free slice we have a memory leak. How and
-    // where do I free slice?
-    // defer allocator.free(slice);
-    return splitByte(allocator, slice, '\n');
-}
-
 pub fn readFileLinesIter(allocator: *mem.Allocator, dir: fs.Dir, sub_path: []const u8) !mem.SplitIterator {
     const slice = try readFile(allocator, dir, sub_path);
     return mem.split(slice, "\n");
 }
 
-// const flags = .{ .read = true };
-// const flags = .{ };
-// var src_file = try source_dir.openFile("sample0.txt", flags);
-// defer src_file.close();
-
 const testing = std.testing;
-
-test "memory allocator reminder how to use free()" {
-    const allocator = testing.allocator;
-    const n: usize = 10;
-    var some_resource = try allocator.alloc([]const u8, n);
-    defer allocator.free(some_resource);
-    const expected_len: usize = n;
-    testing.expectEqual(expected_len, some_resource.len);
-}
 
 test "splitByte" {
     const allocator = testing.allocator;
@@ -85,42 +64,4 @@ test "splitByte" {
 
     const expected_len: usize = 2;
     testing.expectEqual(expected_len, groups.len);
-}
-
-// test "readFileLines (memory leak)" {
-//     const allocator = testing.allocator;
-//     const slices = try readFileLines(allocator, fs.cwd(), "inputs/sample0.txt");
-//     defer allocator.free(slices);
-
-//     const expected_len: usize = 6;
-//     testing.expectEqual(expected_len, slices.len);
-// }
-
-test "read file lines" {
-    const allocator = testing.allocator;
-    const slice = try readFile(allocator, fs.cwd(), "inputs/sample1.txt");
-    defer allocator.free(slice);
-    const slices = try splitByte(allocator, slice, '\n');
-    defer allocator.free(slices);
-
-    const expected_len: usize = 6;
-    testing.expectEqual(expected_len, slices.len);
-}
-
-test "readFileLinesIter" {
-    const allocator = testing.allocator;
-    var iter = try readFileLinesIter(allocator, fs.cwd(), "inputs/sample1.txt");
-    // readFileLinesIter created a buffer but it cannot free it, otherwise the
-    // caller would get a segmentation fault when trying to call iter.next().
-    // So it's the caller's responsability (i.e this test) to free the buffer.
-    defer allocator.free(iter.buffer);
-    // This file has 25 charactes, line feeds included.
-    const expected_len: usize = 25;
-    testing.expectEqual(expected_len, iter.buffer.len);
-    const x = iter.next();
-    // For zig iter.index might as well be null, since zig cannot know whether
-    // the file has a next line or not. But I know that my file has 6 text lines,
-    // so I ensure zig that iter.index is indeed not null.
-    const idx: u64 = iter.index orelse unreachable;
-    testing.expectEqual(@as(u64, 5), idx);
 }
