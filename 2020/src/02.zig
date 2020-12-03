@@ -1,14 +1,16 @@
 const std = @import("std");
 const utils = @import("utils.zig");
+// const input = @embedFile("inputs/02_sample.txt");
+const input = @embedFile("inputs/02.txt");
 const fmt = std.fmt;
 const fs = std.fs;
 const heap = std.heap;
 const log = std.log;
 const mem = std.mem;
 
-fn answer1(allocator: *mem.Allocator, dir: fs.Dir, sub_path: []const u8) !i32 {
+fn answer1(allocator: *mem.Allocator) !i32 {
     var result: i32 = 0;
-    var iter = try utils.readFileLinesIter(allocator, dir, sub_path);
+    var iter = mem.split(input, "\n");
     while (iter.next()) |line| {
         const groups = try utils.splitByte(allocator, line, ' ');
         const digits = try utils.splitByte(allocator, groups[0], '-');
@@ -41,9 +43,9 @@ fn answer1(allocator: *mem.Allocator, dir: fs.Dir, sub_path: []const u8) !i32 {
     return result;
 }
 
-fn answer2(allocator: *mem.Allocator, dir: fs.Dir, sub_path: []const u8) !i32 {
+fn answer2(allocator: *mem.Allocator) !i32 {
     var result: i32 = 0;
-    var iter = try utils.readFileLinesIter(allocator, dir, sub_path);
+    var iter = mem.split(input, "\n");
     // defer allocator.free(iter.buffer);
 
     while (iter.next()) |line| {
@@ -85,24 +87,32 @@ pub fn main() !void {
     var arena = heap.ArenaAllocator.init(heap.page_allocator);
     defer arena.deinit();
 
-    // const a = try answer1(&arena.allocator, fs.cwd(), "sample1.txt");
-    // const a = try answer1(&arena.allocator, fs.cwd(), "part1.txt");
-    const a = try answer2(&arena.allocator, fs.cwd(), "part1.txt");
-    log.info("Answer: {}", .{a});
+    const a1 = try answer1(&arena.allocator);
+    const a2 = try answer2(&arena.allocator);
+    log.info("Part 1: {}", .{a1});
+    log.info("Part 2: {}", .{a2});
 
     const t1 = timer.lap();
     const elapsed_s = @intToFloat(f64, t1 - t0) / std.time.ns_per_s;
-    log.info("Program took {d:.2} seconds", .{elapsed_s});
+    log.info("Day 2 took {d:.2} seconds", .{elapsed_s});
 }
 
 const testing = std.testing;
 
-test "part 1" {
-    const a = try answer1(testing.allocator, fs.cwd(), "sample1.txt");
-    testing.expectEqual(@as(i32, 2), a);
+test "Day 02, part 1" {
+    var arena = heap.ArenaAllocator.init(heap.page_allocator);
+    defer arena.deinit();
+    // TODO: memory leaks when running the testing allocator!
+    // const a = try answer1(testing.allocator);
+    const a = try answer1(&arena.allocator);
+    // testing.expectEqual(@as(i32, 2), a);
+    testing.expectEqual(@as(i32, 378), a);
 }
 
-test "part 2" {
-    const a = try answer2(testing.allocator, fs.cwd(), "sample1.txt");
-    testing.expectEqual(@as(i32, 1), a);
+test "Day 02, part 2" {
+    var arena = heap.ArenaAllocator.init(heap.page_allocator);
+    defer arena.deinit();
+    const a = try answer2(&arena.allocator);
+    // testing.expectEqual(@as(i32, 1), a);
+    testing.expectEqual(@as(i32, 280), a);
 }

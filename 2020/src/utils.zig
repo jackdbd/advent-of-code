@@ -1,6 +1,5 @@
 const std = @import("std");
 const fs = std.fs;
-const log = std.log;
 const mem = std.mem;
 
 /// Count the units of type `T` needed, if we want to split the single slice
@@ -102,7 +101,7 @@ test "splitByte" {
 
 test "read file lines" {
     const allocator = testing.allocator;
-    const slice = try readFile(allocator, fs.cwd(), "inputs/sample1.txt");
+    const slice = try readFile(allocator, fs.cwd(), "src/inputs/01_sample.txt");
     defer allocator.free(slice);
     const slices = try splitByte(allocator, slice, '\n');
     defer allocator.free(slices);
@@ -113,7 +112,7 @@ test "read file lines" {
 
 test "readFileLinesIter" {
     const allocator = testing.allocator;
-    var iter = try readFileLinesIter(allocator, fs.cwd(), "inputs/sample1.txt");
+    var iter = try readFileLinesIter(allocator, fs.cwd(), "src/inputs/01_sample.txt");
     // readFileLinesIter created a buffer but it cannot free it, otherwise the
     // caller would get a segmentation fault when trying to call iter.next().
     // So it's the caller's responsability (i.e this test) to free the buffer.
