@@ -63,7 +63,7 @@ pub fn readFileLines(allocator: *mem.Allocator, dir: fs.Dir, sub_path: []const u
 
 ////////////////////////////////////////////////////////////////////////////////
 
-fn answer1(allocator: *mem.Allocator, dir: fs.Dir, sub_path: []const u8) !i32 {
+fn answer1(allocator: *mem.Allocator, dir: fs.Dir, sub_path: []const u8, right_inc: u8, down_inc: u8) !i32 {
     var result: i32 = 0;
 
     const slice = try readFile(allocator, dir, sub_path);
@@ -72,10 +72,12 @@ fn answer1(allocator: *mem.Allocator, dir: fs.Dir, sub_path: []const u8) !i32 {
     defer allocator.free(lines);
 
     var i_col:u32 = 0;
-    for (lines[0..]) |line, i| {
-        const i_row = i + 1;
-        i_col += 3;
-        if (i_row == lines.len) {
+    var i:u32 = 0;
+    while (i < lines.len) : (i += down_inc) {
+        const i_row = i + down_inc;
+
+        i_col += right_inc;
+        if (i_row >= lines.len) {
             break;
         }
 
@@ -93,12 +95,21 @@ fn answer1(allocator: *mem.Allocator, dir: fs.Dir, sub_path: []const u8) !i32 {
             }
         }
         // How does std.fmt.digitToChar works?
-        // log.debug("lines[i_row]: {}, i_col: {}, len: {}, idx: {}, lines[i_row][idx]: {}", .{lines[i_row], i_col, lines[i_row].len, idx, lines[i_row][idx]});
+        // log.debug("i_row: {}, i_col: {}, idx: {}, lines[{}]: {}, lines[{}][{}]: {}", .{i_row, i_col, idx, i_row, lines[i_row], i_row, idx, lines[i_row][idx]});
         if (lines[i_row][idx] == 35) {
             result += 1;
         }
     }
     return result;
+}
+
+fn answer2(allocator: *mem.Allocator, dir: fs.Dir, sub_path: []const u8) !i32 {
+    const a11 = try answer1(allocator, dir, sub_path, 1, 1);
+    const a31 = try answer1(allocator, dir, sub_path, 3, 1);
+    const a51 = try answer1(allocator, dir, sub_path, 5, 1);
+    const a71 = try answer1(allocator, dir, sub_path, 7, 1);
+    const a12 = try answer1(allocator, dir, sub_path, 1, 2);
+    return a11 * a31 * a51 * a71 * a12;
 }
 
 pub fn main() !void {
@@ -108,8 +119,10 @@ pub fn main() !void {
     var arena = heap.ArenaAllocator.init(heap.page_allocator);
     defer arena.deinit();
 
-    // const a = try answer1(&arena.allocator, fs.cwd(), "sample1.txt");
-    const a = try answer1(&arena.allocator, fs.cwd(), "part1.txt");
+    // const a = try answer1(&arena.allocator, fs.cwd(), "sample.txt", 3, 1);
+    // const a = try answer1(&arena.allocator, fs.cwd(), "input.txt", 3, 1);
+    // const a = try answer2(&arena.allocator, fs.cwd(), "sample.txt");
+    const a = try answer2(&arena.allocator, fs.cwd(), "input.txt");
     log.info("Answer: {}", .{a});
 
     const t1 = timer.lap();
@@ -120,11 +133,11 @@ pub fn main() !void {
 const testing = std.testing;
 
 test "part 1" {
-    const a = try answer1(testing.allocator, fs.cwd(), "sample1.txt");
+    const a = try answer1(testing.allocator, fs.cwd(), "sample.txt", 3, 1);
     testing.expectEqual(@as(i32, 7), a);
 }
 
-// test "part 2" {
-//     const a = try answer2(testing.allocator, fs.cwd(), "sample1.txt");
-//     testing.expectEqual(@as(i32, 1), a);
-// }
+test "part 2" {
+    const a = try answer2(testing.allocator, fs.cwd(), "sample.txt");
+    testing.expectEqual(@as(i32, 336), a);
+}
