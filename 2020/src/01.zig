@@ -22,7 +22,7 @@ fn answer1(allocator: *mem.Allocator) !i32 {
                 // log.debug("n0: {}, n1: {}, i: {}, j: {}", .{ n0, n1, i, j });
                 result = n0 * n1;
                 break :outer;
-            } 
+            }
         }
     }
     return result;
@@ -36,16 +36,16 @@ fn answer2(allocator: *mem.Allocator) !i32 {
     outer: for (lines[0..]) |l0, i| {
         for (lines[1..]) |l1, j| {
             for (lines[2..]) |l2, k| {
-            // log.debug("l0: {}, l1: {}", .{ l0, l1 });
-            const n0 = try fmt.parseInt(i32, l0, 10);
-            const n1 = try fmt.parseInt(i32, l1, 10);
-            const n2 = try fmt.parseInt(i32, l2, 10);
-            if (n0 + n1 + n2 == 2020) {
-                // log.debug("n0: {}, n1: {}, n2: {}, i: {}, j: {} k: {}", .{ n0, n1, n2, i, j, k });
-                result = n0 * n1 * n2;
-                break :outer;
-            } 
-        }
+                // log.debug("l0: {}, l1: {}", .{ l0, l1 });
+                const n0 = try fmt.parseInt(i32, l0, 10);
+                const n1 = try fmt.parseInt(i32, l1, 10);
+                const n2 = try fmt.parseInt(i32, l2, 10);
+                if (n0 + n1 + n2 == 2020) {
+                    // log.debug("n0: {}, n1: {}, n2: {}, i: {}, j: {} k: {}", .{ n0, n1, n2, i, j, k });
+                    result = n0 * n1 * n2;
+                    break :outer;
+                }
+            }
         }
     }
     return result;
@@ -54,7 +54,7 @@ fn answer2(allocator: *mem.Allocator) !i32 {
 pub fn main() !void {
     var timer = try std.time.Timer.start();
     const t0 = timer.lap();
-    
+
     // var gpa = heap.GeneralPurposeAllocator(.{}){};
     var arena = heap.ArenaAllocator.init(heap.page_allocator);
     defer arena.deinit();

@@ -11,7 +11,7 @@ pub fn main() !void {
 
     log.info("Day 1", .{});
     try day1.main();
-    
+
     log.info("Day 2", .{});
     try day2.main();
 

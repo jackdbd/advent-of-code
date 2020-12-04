@@ -8,14 +8,13 @@ const heap = std.heap;
 const log = std.log;
 const mem = std.mem;
 
-
 fn answer1(allocator: *mem.Allocator, right_inc: u8, down_inc: u8) !i32 {
     var result: i32 = 0;
     const lines = try utils.splitByte(allocator, input, '\n');
     defer allocator.free(lines);
 
-    var i_col:u32 = 0;
-    var i:u32 = 0;
+    var i_col: u32 = 0;
+    var i: u32 = 0;
     while (i < lines.len) : (i += down_inc) {
         const i_row = i + down_inc;
 
@@ -27,13 +26,13 @@ fn answer1(allocator: *mem.Allocator, right_inc: u8, down_inc: u8) !i32 {
         // Each input line has a pattern made of . (ASCII 46) and X (ASCII 35)
         // Since i_col might exceed a line's length, we compute a new index idx
         // instead of explicitly repeating the pattern.
-        var idx:usize = 0;
+        var idx: usize = 0;
         const len = lines[i_row].len;
         if (i_col < len) {
             idx = i_col;
         } else {
             idx = i_col;
-            while(idx >= len) {
+            while (idx >= len) {
                 idx = idx - len;
             }
         }
@@ -58,7 +57,7 @@ fn answer2(allocator: *mem.Allocator) !i32 {
 pub fn main() !void {
     var timer = try std.time.Timer.start();
     const t0 = timer.lap();
-    
+
     var arena = heap.ArenaAllocator.init(heap.page_allocator);
     defer arena.deinit();
 

@@ -24,7 +24,7 @@ fn answer1(allocator: *mem.Allocator) !i32 {
         // log.info("char: {} {}", .{char[0].len, @typeInfo(@TypeOf(char))});
         // log.info("password: {} {}", .{password.len, @typeInfo(@TypeOf(password[0]))});
 
-        var n:i32 = 0;
+        var n: i32 = 0;
         for (password) |p, i| {
             if (p == char[0][0]) {
                 n += 1;
@@ -56,19 +56,19 @@ fn answer2(allocator: *mem.Allocator) !i32 {
         var idx0 = try fmt.parseInt(i32, digits[0], 10);
         idx0 -= 1;
         var idx1 = try fmt.parseInt(i32, digits[1], 10);
-        idx1 -=1;
+        idx1 -= 1;
         const char = try utils.splitByte(allocator, groups[1], ':');
         // defer allocator.free(char);
         const password = groups[2];
 
         // log.debug("line: {} (idx0: {}, idx1: {}, char: {}, password: {})", .{line, idx0, idx1, char[0], password});
 
-        var matches:i32 = 0;
+        var matches: i32 = 0;
         for (password) |p, i| {
             if (i == idx0 or i == idx1) {
                 if (p == char[0][0]) {
                     // log.info("p: {} i: {}, idx0: {}, idx1: {}", .{p, i, idx0, idx1});
-                    matches += 1; 
+                    matches += 1;
                 }
             }
         }
@@ -83,7 +83,7 @@ fn answer2(allocator: *mem.Allocator) !i32 {
 pub fn main() !void {
     var timer = try std.time.Timer.start();
     const t0 = timer.lap();
-    
+
     var arena = heap.ArenaAllocator.init(heap.page_allocator);
     defer arena.deinit();
 
