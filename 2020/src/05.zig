@@ -1,7 +1,7 @@
 const std = @import("std");
 const utils = @import("utils.zig");
-const input = @embedFile("inputs/05_sample.txt");
-// const input = @embedFile("inputs/05.txt");
+// const input = @embedFile("inputs/05_sample.txt");
+const input = @embedFile("inputs/05.txt");
 const fmt = std.fmt;
 const fs = std.fs;
 const heap = std.heap;
@@ -50,9 +50,47 @@ fn answer1(allocator: *mem.Allocator) u32 {
     return result;
 }
 
-fn answer2(allocator: *mem.Allocator) u32 {
-    var result: u32 = 0;
-    return result;
+fn answer2(allocator: *mem.Allocator) !u32 {
+    var seat_row_min: u32 = 1000; // an arbitrary big number used as starting point
+    var seat_row_max: u32 = 0;
+    var seat_id_min: u32 = 1000; // an arbitrary big number used as starting point
+    var seat_id_max: u32 = 0;
+    var map = std.AutoHashMap(u32, void).init(allocator);
+
+    var it = std.mem.split(input, "\n");
+    while (it.next()) |string| {
+        const rows = string[0..7];
+        const columns = string[7..];
+        const seat_row = binary_space_partition(rows);
+        const seat_column = binary_space_partition(columns);
+        const seat_id: u32 = seat_row * 8 + seat_column;
+
+        if (seat_row < seat_row_min) {
+            seat_row_min = seat_row;
+        }
+        if (seat_row > seat_row_max) {
+            seat_row_max = seat_row;
+        }
+
+        // log.debug("string: {}, rows: {}, columns: {}, seat_row: {}, seat_column: {}, seat_id: {}", .{ string, rows, columns, seat_row, seat_column, seat_id });
+        if (seat_id < seat_id_min) {
+            seat_id_min = seat_id;
+        }
+        if (seat_id > seat_id_max) {
+            seat_id_max = seat_id;
+        }
+        map.put(seat_id, {}) catch unreachable; // assume it never fails
+    }
+    // log.debug("seat_row_min: {}, seat_row_max: {}, seat_id_min: {}, seat_id_max: {}", .{ seat_row_min, seat_row_max, seat_id_min, seat_id_max });
+
+    // we know that the only missing seat ID from the list is ours
+    const candidate_seat_ids = try utils.range(u32, allocator, seat_id_min, seat_id_max, 1);
+    for (candidate_seat_ids.items) |id| {
+        if (map.get(id) == null) {
+            return id;
+        }
+    }
+    @panic("unreachable because we found our seat ID and returned early");
 }
 
 pub fn main() !void {
@@ -63,7 +101,7 @@ pub fn main() !void {
     defer arena.deinit();
 
     const a1 = answer1(&arena.allocator);
-    const a2 = answer2(&arena.allocator);
+    const a2 = try answer2(&arena.allocator);
     log.info("Part 1: {}", .{a1});
     log.info("Part 2: {}", .{a2});
 
@@ -78,14 +116,13 @@ test "Day 05, part 1" {
     var arena = heap.ArenaAllocator.init(heap.page_allocator);
     defer arena.deinit();
     const a = answer1(&arena.allocator);
-    testing.expectEqual(@intCast(u32, 820), a);
-    // testing.expectEqual(@intCast(u32, 911), a);
+    // testing.expectEqual(@intCast(u32, 820), a);
+    testing.expectEqual(@intCast(u32, 911), a);
 }
 
 test "Day 05, part 2" {
     var arena = heap.ArenaAllocator.init(heap.page_allocator);
     defer arena.deinit();
-    const a = answer2(&arena.allocator);
-    testing.expectEqual(@intCast(u32, 911), a);
-    // testing.expectEqual(@intCast(u32, 911), a);
+    const a = try answer2(&arena.allocator);
+    testing.expectEqual(@intCast(u32, 629), a);
 }

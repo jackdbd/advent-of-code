@@ -65,6 +65,15 @@ pub fn readFileLinesIter(allocator: *mem.Allocator, dir: fs.Dir, sub_path: []con
     return it;
 }
 
+pub fn range(comptime T: type, allocator: *mem.Allocator, begin: T, end: T, step: T) !std.ArrayList(T) {
+    var list = std.ArrayList(T).init(allocator);
+    var i = begin;
+    while (i < end) : (i += step) {
+        try list.append(i);
+    }
+    return list;
+}
+
 // const flags = .{ .read = true };
 // const flags = .{ };
 // var src_file = try source_dir.openFile("sample0.txt", flags);
