@@ -26,7 +26,6 @@ fn answer1(allocator: *mem.Allocator) !i32 {
     const list = try passports(allocator);
     for (list.items) |pass, i| {
         // log.info("pass {} i {}", .{ pass, i });
-
         var fields: u8 = 0;
         var cid_missing = true;
         var it = mem.split(pass, " ");
