@@ -9,16 +9,16 @@ const log = std.log;
 const math = std.math;
 const mem = std.mem;
 
-fn answer1(allocator: *mem.Allocator) !u32 {
+fn answer(allocator: *mem.Allocator, is_part_one: bool) !u32 {
     var result: u32 = 0;
-
     var groups = mem.split(input, "\n\n");
     while (groups.next()) |string| {
         var map = std.AutoHashMap(u8, u32).init(allocator);
         // log.debug("GROUP", .{});
+        var n_persons: u32 = 0;
         var persons = mem.split(string, "\n");
         while (persons.next()) |answers| {
-            // log.debug("answers: {}", .{answers});
+            n_persons += 1;
             for (answers) |a, i| {
                 const n = map.get(a);
                 if (n == null) {
@@ -28,13 +28,20 @@ fn answer1(allocator: *mem.Allocator) !u32 {
                 }
             }
         }
-        result += map.count();
+
+        if (is_part_one) {
+            result += map.count();
+        } else {
+            var it = map.iterator();
+            while (it.next()) |entry| {
+                if (entry.value == n_persons) {
+                    result += 1;
+                }
+            }
+        }
     }
     return result;
 }
-
-// fn answer2(allocator: *mem.Allocator) !u32 {
-// }
 
 pub fn main() !void {
     var timer = try std.time.Timer.start();
@@ -43,10 +50,10 @@ pub fn main() !void {
     var arena = heap.ArenaAllocator.init(heap.page_allocator);
     defer arena.deinit();
 
-    const a1 = answer1(&arena.allocator);
-    // const a2 = try answer2(&arena.allocator);
+    const a1 = answer(&arena.allocator, true);
+    const a2 = try answer(&arena.allocator, false);
     log.info("Part 1: {}", .{a1});
-    // log.info("Part 2: {}", .{a2});
+    log.info("Part 2: {}", .{a2});
 
     const t1 = timer.lap();
     const elapsed_s = @intToFloat(f64, t1 - t0) / std.time.ns_per_s;
@@ -58,14 +65,15 @@ const testing = std.testing;
 test "Day 06, part 1" {
     var arena = heap.ArenaAllocator.init(heap.page_allocator);
     defer arena.deinit();
-    const a = answer1(&arena.allocator);
-    testing.expectEqual(@intCast(u32, 11), a);
-    // testing.expectEqual(@intCast(u32, 6775), a);
+    const a = try answer(&arena.allocator, true);
+    // testing.expectEqual(@intCast(u32, 11), a);
+    testing.expectEqual(@intCast(u32, 6775), a);
 }
 
-// test "Day 06, part 2" {
-//     var arena = heap.ArenaAllocator.init(heap.page_allocator);
-//     defer arena.deinit();
-//     const a = try answer2(&arena.allocator);
-//     testing.expectEqual(@intCast(u32, 629), a);
-// }
+test "Day 06, part 2" {
+    var arena = heap.ArenaAllocator.init(heap.page_allocator);
+    defer arena.deinit();
+    const a = try answer(&arena.allocator, false);
+    // testing.expectEqual(@intCast(u32, 6), a);
+    testing.expectEqual(@intCast(u32, 3356), a);
+}
