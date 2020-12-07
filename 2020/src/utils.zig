@@ -59,9 +59,6 @@ pub fn readFileLines(allocator: *mem.Allocator, dir: fs.Dir, sub_path: []const u
 pub fn readFileLinesIter(allocator: *mem.Allocator, dir: fs.Dir, sub_path: []const u8) !mem.SplitIterator {
     const slice = try readFile(allocator, dir, sub_path);
     var it = mem.split(slice, "\n");
-    // while (it.next()) |value| {
-    //     log.info("value: {}", .{value});
-    // }
     return it;
 }
 
@@ -72,6 +69,14 @@ pub fn range(comptime T: type, allocator: *mem.Allocator, begin: T, end: T, step
         try list.append(i);
     }
     return list;
+}
+
+/// Concat 2 strings into one.
+pub fn concat(allocator: *mem.Allocator, a: []const u8, b: []const u8) ![]u8 {
+    const result = try allocator.alloc(u8, a.len + b.len);
+    std.mem.copy(u8, result, a);
+    std.mem.copy(u8, result[a.len..], b);
+    return result;
 }
 
 // const flags = .{ .read = true };
