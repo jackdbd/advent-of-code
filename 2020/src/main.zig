@@ -8,10 +8,11 @@ const day4 = @import("04.zig");
 const day5 = @import("05.zig");
 const day6 = @import("06.zig");
 const day7 = @import("07.zig");
+const day8 = @import("08.zig");
 
 const module_names = comptime [_][]const u8{
     "01.zig", "02.zig", "03.zig", "04.zig", "05.zig",
-    "06.zig", "07.zig",
+    "06.zig", "07.zig", "08.zig",
 };
 
 pub fn main() !void {
@@ -60,6 +61,9 @@ pub fn main() !void {
 
     log.info("Day 7", .{});
     try day7.main();
+
+    log.info("Day 8", .{});
+    try day8.main();
 
     const t1 = timer.lap();
     const elapsed_ms = @intToFloat(f64, t1 - t0) / std.time.ns_per_ms;
