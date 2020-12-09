@@ -27,9 +27,12 @@ fn isValidGivenPreable(haystack: *Map, needle: usize, i_start: usize, preamble: 
     return false;
 }
 
-fn answer1(allocator: *mem.Allocator, preamble: usize) !usize {
+var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+const allocator = &gpa.allocator;
+var map = Map.init(allocator);
+
+fn answer1(preamble: usize) !usize {
     var result: usize = 0;
-    var map = Map.init(allocator);
 
     var lines = mem.split(input, "\n");
     var i: usize = 0;
@@ -52,17 +55,44 @@ fn answer1(allocator: *mem.Allocator, preamble: usize) !usize {
     return result;
 }
 
+fn findWeakness(haystack: *Map, needle: usize) usize {
+    const num_entries = map.count();
+    var i: usize = 0;
+    while (i < num_entries - 1) : (i += 1) {
+        var j = i + 1;
+        var count = haystack.get(i) orelse unreachable;
+        var n = haystack.get(j) orelse unreachable;
+        var min: usize = math.min(count, n);
+        var max: usize = math.max(count, n);
+        count += n;
+        while (count < needle) {
+            j += 1;
+            n = haystack.get(j) orelse unreachable;
+            min = if (n < min) n else min;
+            max = if (n > max) n else max;
+            count += n;
+        }
+        if (count == needle) {
+            // log.info("FOUND i: {}, j: {}, count == needle == {}, min: {}, max: {}", .{i, j, count, min, max});
+            return min + max;
+        }
+    } else unreachable;
+}
+
+fn answer2(preamble: usize) !usize {
+    const needle = try answer1(preamble);
+    return findWeakness(&map, needle);
+}
+
 pub fn main() !void {
     var timer = try std.time.Timer.start();
     const t0 = timer.lap();
 
-    var arena = heap.ArenaAllocator.init(heap.page_allocator);
-    defer arena.deinit();
-
-    const a1 = answer1(&arena.allocator, 25); // 5 for sample, 25 for input
-    // const a2 = try answer(&arena.allocator, false);
+    const preamble = 25; // 5 for sample, 25 for input
+    const a1 = try answer1(preamble);
+    const a2 = try answer2(preamble);
     log.info("Part 1: {}", .{a1});
-    // log.info("Part 2: {}", .{a2});
+    log.info("Part 2: {}", .{a2});
 
     const t1 = timer.lap();
     const elapsed_s = @intToFloat(f64, t1 - t0) / std.time.ns_per_s;
@@ -72,18 +102,15 @@ pub fn main() !void {
 const testing = std.testing;
 
 test "Day 09, part 1" {
-    var arena = heap.ArenaAllocator.init(heap.page_allocator);
-    defer arena.deinit();
     const preamble = 25; // 5 for sample, 25 for input
-    const a = try answer1(&arena.allocator, preamble);
+    const a = try answer1(preamble);
     // testing.expectEqual(@intCast(usize, 127), a);
     testing.expectEqual(@intCast(usize, 1639024365), a);
 }
 
-// test "Day 09, part 2" {
-//     var arena = heap.ArenaAllocator.init(heap.page_allocator);
-//     defer arena.deinit();
-//     const a = try answer(&arena.allocator);
-//     // testing.expectEqual(@intCast(u32, 6), a);
-//     testing.expectEqual(@intCast(u32, 3356), a);
-// }
+test "Day 09, part 2" {
+    const preamble = 25; // 5 for sample, 25 for input
+    const a = try answer2(preamble);
+    // testing.expectEqual(@intCast(usize, 62), a);
+    testing.expectEqual(@intCast(usize, 219202240), a);
+}
