@@ -1,5 +1,6 @@
 const std = @import("std");
 const fs = std.fs;
+const math = std.math;
 const mem = std.mem;
 
 /// Count the units of type `T` needed, if we want to split the single slice
@@ -77,6 +78,22 @@ pub fn concat(allocator: *mem.Allocator, a: []const u8, b: []const u8) ![]u8 {
     std.mem.copy(u8, result, a);
     std.mem.copy(u8, result[a.len..], b);
     return result;
+}
+
+pub const Pos = struct {
+    x: isize = 0,
+    y: isize = 0,
+};
+
+pub const Dir = enum {
+    Up,
+    Down,
+    Left,
+    Right,
+};
+
+pub fn manhattan(p0: Pos, p1: Pos) usize {
+    return math.absCast(p1.x - p0.x) + math.absCast(p1.y - p0.y);
 }
 
 // const flags = .{ .read = true };
