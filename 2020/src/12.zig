@@ -7,6 +7,7 @@ const heap = std.heap;
 const log = std.log;
 const mem = std.mem;
 const Dir = utils.Dir;
+const Pos = utils.Pos;
 
 const Action = enum {
     N,
@@ -18,23 +19,23 @@ const Action = enum {
     F,
 };
 
+// I chose this coordinate system:
+// x are positive rightwards
+// y are positive upwards
+
 const Ship = struct {
-    pos: utils.Pos,
+    pos: Pos,
     dir: Dir,
 
     const Self = @This();
 
     fn move(self: *Self, dir: Dir, units: isize) void {
         return switch (dir) {
-            Dir.Up => self.pos.y -= units,
+            Dir.Up => self.pos.y += units,
             Dir.Right => self.pos.x += units,
-            Dir.Down => self.pos.y += units,
+            Dir.Down => self.pos.y -= units,
             Dir.Left => self.pos.x -= units,
         };
-    }
-
-    fn moveForward(self: *Self, units: isize) void {
-        self.move(self.dir, units);
     }
 
     fn moveNorth(self: *Self, units: isize) void {
@@ -53,7 +54,11 @@ const Ship = struct {
         self.move(Dir.Left, units);
     }
 
-    fn turnLeft90(self: *Self) void {
+    fn moveForward(self: *Self, units: isize) void {
+        self.move(self.dir, units);
+    }
+
+    fn rotateCounterClockwise90(self: *Self) void {
         return switch (self.dir) {
             Dir.Up => self.dir = Dir.Left,
             Dir.Right => self.dir = Dir.Up,
@@ -62,15 +67,15 @@ const Ship = struct {
         };
     }
 
-    fn turnLeft(self: *Self, degrees: isize) void {
+    fn rotateLeft(self: *Self, degrees: isize) void {
         std.debug.assert(degrees == 90 or degrees == 180 or degrees == 270);
         var n = @divTrunc(degrees, 90);
         while (n > 0) : (n -= 1) {
-            self.turnLeft90();
+            self.rotateCounterClockwise90();
         }
     }
 
-    fn turnRight90(self: *Self) void {
+    fn rotateClockwise90(self: *Self) void {
         return switch (self.dir) {
             Dir.Up => self.dir = Dir.Right,
             Dir.Right => self.dir = Dir.Down,
@@ -79,11 +84,78 @@ const Ship = struct {
         };
     }
 
-    fn turnRight(self: *Self, degrees: isize) void {
+    fn rotateRight(self: *Self, degrees: isize) void {
         std.debug.assert(degrees == 90 or degrees == 180 or degrees == 270);
         var n = @divTrunc(degrees, 90);
         while (n > 0) : (n -= 1) {
-            self.turnRight90();
+            self.rotateClockwise90();
+        }
+    }
+};
+
+const Waypoint = struct {
+    pos: Pos,
+    ship: *Ship,
+
+    const Self = @This();
+
+    fn move(self: *Self, dir: Dir, units: isize) void {
+        return switch (dir) {
+            Dir.Up => self.pos.y += units,
+            Dir.Right => self.pos.x += units,
+            Dir.Down => self.pos.y -= units,
+            Dir.Left => self.pos.x -= units,
+        };
+    }
+
+    fn moveNorth(self: *Self, units: isize) void {
+        self.move(Dir.Up, units);
+    }
+
+    fn moveSouth(self: *Self, units: isize) void {
+        self.move(Dir.Down, units);
+    }
+
+    fn moveEast(self: *Self, units: isize) void {
+        self.move(Dir.Right, units);
+    }
+
+    fn moveWest(self: *Self, units: isize) void {
+        self.move(Dir.Left, units);
+    }
+
+    fn moveForward(self: *Self, units: isize) void {
+        self.ship.pos.x += self.pos.x * units;
+        self.ship.pos.y += self.pos.y * units;
+    }
+
+    fn rotate(self: *Self, clockwise: bool) void {
+        if (clockwise) {
+            self.ship.rotateClockwise90();
+            const tmp = self.pos.x;
+            self.pos.x = self.pos.y;
+            self.pos.y = tmp * (-1);
+        } else {
+            self.ship.rotateCounterClockwise90();
+            const tmp = self.pos.x;
+            self.pos.x = self.pos.y * (-1);
+            self.pos.y = tmp;
+        }
+    }
+
+    fn rotateLeft(self: *Self, degrees: isize) void {
+        std.debug.assert(degrees == 90 or degrees == 180 or degrees == 270);
+        var n = @divTrunc(degrees, 90);
+        while (n > 0) : (n -= 1) {
+            self.rotate(false);
+        }
+    }
+
+    fn rotateRight(self: *Self, degrees: isize) void {
+        std.debug.assert(degrees == 90 or degrees == 180 or degrees == 270);
+        var n = @divTrunc(degrees, 90);
+        while (n > 0) : (n -= 1) {
+            self.rotate(true);
         }
     }
 };
@@ -108,8 +180,7 @@ fn parseAction(s: *const [1]u8) Action {
 }
 
 fn answer1(allocator: *mem.Allocator) !usize {
-    var result: usize = 0;
-    const p0 = utils.Pos{ .x = 0, .y = 0 };
+    const p0 = Pos{ .x = 0, .y = 0 };
     var ship = Ship{ .pos = p0, .dir = Dir.Right };
 
     var lines = mem.split(input, "\n");
@@ -122,19 +193,36 @@ fn answer1(allocator: *mem.Allocator) !usize {
             Action.S => ship.moveSouth(units),
             Action.E => ship.moveEast(units),
             Action.W => ship.moveWest(units),
-            Action.L => ship.turnLeft(units),
-            Action.R => ship.turnRight(units),
+            Action.L => ship.rotateLeft(units),
+            Action.R => ship.rotateRight(units),
             Action.F => ship.moveForward(units),
         }
         // log.info("{} {} ship {}", .{ action, units, ship });
     }
-    // log.info("p0 {}, ship.pos {}", .{ p0, ship.pos });
     return utils.manhattan(p0, ship.pos);
 }
 
 fn answer2(allocator: *mem.Allocator) !usize {
-    var result: usize = 0;
-    return result;
+    const p0 = Pos{ .x = 0, .y = 0 };
+    var ship = Ship{ .pos = p0, .dir = Dir.Right };
+    var waypoint = Waypoint{ .pos = Pos{ .x = ship.pos.x + 10, .y = ship.pos.y + 1 }, .ship = &ship };
+
+    var lines = mem.split(input, "\n");
+    while (lines.next()) |line| {
+        const units = try fmt.parseInt(isize, line[1..], 10);
+        const action = parseAction(line[0..1]);
+        switch (action) {
+            Action.N => waypoint.moveNorth(units),
+            Action.S => waypoint.moveSouth(units),
+            Action.E => waypoint.moveEast(units),
+            Action.W => waypoint.moveWest(units),
+            Action.L => waypoint.rotateLeft(units),
+            Action.R => waypoint.rotateRight(units),
+            Action.F => waypoint.moveForward(units),
+        }
+        // log.info("{} {} waypoint (relative to ship) [{},{}] ship [{},{}]", .{ action, units, waypoint.pos.x, waypoint.pos.y, ship.pos.x, ship.pos.y });
+    }
+    return utils.manhattan(p0, ship.pos);
 }
 
 pub fn main() !void {
@@ -145,9 +233,9 @@ pub fn main() !void {
     defer arena.deinit();
 
     const a1 = try answer1(&arena.allocator);
-    // const a2 = try answer2(&arena.allocator);
+    const a2 = try answer2(&arena.allocator);
     log.info("Part 1: {}", .{a1});
-    // log.info("Part 2: {}", .{a2});
+    log.info("Part 2: {}", .{a2});
 
     const t1 = timer.lap();
     const elapsed_s = @intToFloat(f64, t1 - t0) / std.time.ns_per_s;
@@ -164,10 +252,10 @@ test "Day 12, part 1" {
     testing.expectEqual(@intCast(usize, 562), a);
 }
 
-// test "Day 12, part 2" {
-//     var arena = heap.ArenaAllocator.init(heap.page_allocator);
-//     defer arena.deinit();
-//     const a = try answer2(&arena.allocator);
-//     // testing.expectEqual(@intCast(i32, 8), a);
-//     testing.expectEqual(@intCast(i32, 1235), a);
-// }
+test "Day 12, part 2" {
+    var arena = heap.ArenaAllocator.init(heap.page_allocator);
+    defer arena.deinit();
+    const a = try answer2(&arena.allocator);
+    // testing.expectEqual(@intCast(usize, 286), a);
+    testing.expectEqual(@intCast(usize, 101860), a);
+}
