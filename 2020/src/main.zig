@@ -24,7 +24,7 @@ pub fn main() !void {
     // https://stackoverflow.com/a/65171200/3036129
     inline for (module_names) |module_name, day| {
         const module = @import(module_name);
-        log.info("Day {}", .{day});
+        log.info("Day {}", .{day + 1});
         try module.main();
     }
 
