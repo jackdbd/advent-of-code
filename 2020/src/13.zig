@@ -46,9 +46,43 @@ fn answer1(allocator: *mem.Allocator) !usize {
     return result;
 }
 
+const Accumulator = struct {
+    bus_id: usize, // bus_id is also the earliest departure time for that bus
+    t: usize,
+
+    const Self = @This();
+
+    fn combine(self: *Self, other: Self) Self {
+        var k: usize = 0;
+        while (k <= other.bus_id) : (k += 1) {
+            const t = self.bus_id * k + self.t;
+            if (t < other.t) continue;
+
+            if ((t - other.t) % other.bus_id == 0) {
+                return Self{ .bus_id = self.bus_id * other.bus_id, .t = t };
+            }
+        } else unreachable; // we know there is a solution, so we know we exit with the early return above
+    }
+};
+
 fn answer2(allocator: *mem.Allocator) !usize {
-    var result: usize = 0;
-    return result;
+    var it = mem.tokenize(input, ",\n");
+    _ = it.next();
+
+    var t_offset: usize = 0;
+    var accumulator: ?Accumulator = null;
+    while (it.next()) |s| {
+        if (std.mem.eql(u8, "x", s)) {
+            t_offset += 1;
+            continue;
+        }
+        const bus_id = try std.fmt.parseInt(usize, s, 10);
+        var t = bus_id - (t_offset % bus_id);
+        const acc = Accumulator{ .bus_id = bus_id, .t = t };
+        accumulator = if (accumulator == null) acc else accumulator.?.combine(acc);
+        t_offset += 1;
+    }
+    return accumulator.?.t;
 }
 
 pub fn main() !void {
@@ -78,10 +112,10 @@ test "Day 13, part 1" {
     testing.expectEqual(@intCast(usize, 6568), a);
 }
 
-// test "Day 13, part 2" {
-//     var arena = heap.ArenaAllocator.init(heap.page_allocator);
-//     defer arena.deinit();
-//     const a = try answer2(&arena.allocator);
-//     // testing.expectEqual(@intCast(i32, 8), a);
-//     testing.expectEqual(@intCast(i32, 1235), a);
-// }
+test "Day 13, part 2" {
+    var arena = heap.ArenaAllocator.init(heap.page_allocator);
+    defer arena.deinit();
+    const a = try answer2(&arena.allocator);
+    // testing.expectEqual(@intCast(usize, 1068781), a);
+    testing.expectEqual(@intCast(usize, 554865447501099), a);
+}
