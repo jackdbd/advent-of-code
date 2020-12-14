@@ -1,5 +1,4 @@
 const std = @import("std");
-const utils = @import("utils.zig");
 // const input = @embedFile("inputs/14_sample.txt");
 // const input = @embedFile("inputs/14_sample2.txt");
 // const input = @embedFile("inputs/14_sample3.txt");
@@ -43,6 +42,10 @@ fn toDecimal(bits: [36]u8) !usize {
     return value;
 }
 
+/// bit mask
+/// [i] = bit value
+/// i=0 MSB; i=35 LSB
+/// bit value is either 48 for 0, 49 for 1, 88 for X
 const Mask = struct {
     map: std.AutoHashMap(usize, u8),
 
@@ -95,14 +98,6 @@ const Mask = struct {
         std.debug.assert(updated_bits.len == 36);
         return updated_bits;
     }
-
-    // index 0 = MSB; index 35 = LSB
-    fn print(self: *Self) void {
-        var it = self.map.iterator();
-        while (it.next()) |e| {
-            log.debug("bit {} at index {}", .{ e.value, e.key });
-        }
-    }
 };
 
 fn answer1(allocator: *mem.Allocator) !usize {
@@ -142,6 +137,7 @@ const FloatingBit = struct {
     period: usize,
 };
 
+/// Generate all combinations replacing Xs (floating bits) with either 0s or 1s.
 fn combinations(allocator: *mem.Allocator, bits: [36]u8) !std.ArrayList([36]u8) {
     var solutions = std.ArrayList([36]u8).init(allocator);
     const nx = mem.count(u8, bits[0..], "X");
@@ -175,7 +171,6 @@ fn combinations(allocator: *mem.Allocator, bits: [36]u8) !std.ArrayList([36]u8) 
     return solutions;
 }
 
-// The result is correct with the sample input, but it's too low for the problem input.
 fn answer2(allocator: *mem.Allocator) !usize {
     var buf: [36]u8 = undefined;
     var fbs = std.io.fixedBufferStream(&buf);
