@@ -1,6 +1,8 @@
 const std = @import("std");
 const utils = @import("utils.zig");
 // const input = @embedFile("inputs/14_sample.txt");
+// const input = @embedFile("inputs/14_sample2.txt");
+// const input = @embedFile("inputs/14_sample3.txt");
 const input = @embedFile("inputs/14.txt");
 const fmt = std.fmt;
 const heap = std.heap;
@@ -18,6 +20,7 @@ fn parseInstruction(address_s: []const u8, value_s: []const u8) std.fmt.ParseInt
     return Instruction{ .address = address, .value = value };
 }
 
+// out_stream is something like std.io.Writer. Not sure how to declare the type.
 fn toBinary(out_stream: anytype, value: usize) ![36]u8 {
     std.debug.assert(out_stream.context.buffer.len == 36);
     try std.fmt.format(out_stream, "{b:0>36}", .{value});
@@ -27,7 +30,6 @@ fn toBinary(out_stream: anytype, value: usize) ![36]u8 {
 }
 
 fn toDecimal(bits: [36]u8) !usize {
-    // log.debug("toDecimal {}", .{bits});
     var value: usize = 0;
     var i: usize = bits.len;
     // i=36 -> n=0 -> bits[0]=LSB
@@ -78,6 +80,22 @@ const Mask = struct {
         return updated_bits;
     }
 
+    fn apply2(self: *Self, bits: [36]u8) [36]u8 {
+        std.debug.assert(bits.len == 36);
+        var updated_bits = bits;
+        var it = self.map.iterator();
+        while (it.next()) |e| {
+            const i = e.key;
+            if (e.value == 49) {
+                updated_bits[i] = 49;
+            } else if (e.value == 88) {
+                updated_bits[i] = 88;
+            }
+        }
+        std.debug.assert(updated_bits.len == 36);
+        return updated_bits;
+    }
+
     // index 0 = MSB; index 35 = LSB
     fn print(self: *Self) void {
         var it = self.map.iterator();
@@ -94,7 +112,6 @@ fn answer1(allocator: *mem.Allocator) !usize {
 
     var mask = Mask.init(allocator);
     var memory_map = std.AutoHashMap(usize, usize).init(allocator);
-    // var list = std.ArrayList([36]u8).init(allocator);
     var sum_in_memory: usize = 0;
 
     var lines = mem.split(input, "\n");
@@ -106,27 +123,93 @@ fn answer1(allocator: *mem.Allocator) !usize {
         } else {
             const instr = try parseInstruction(it.next().?, it.next().?);
             const bits_pre = try toBinary(out_stream, instr.value);
-            // log.debug("bits_pre  {} ({})", .{bits_pre, instr.value});
             const bits_post = mask.apply(bits_pre);
             const value = try toDecimal(bits_post);
-            // log.debug("bits_post {} ({})", .{bits_post, value});
-            // log.debug("write {} at mem[{}]", .{ value, instr.address });
             try memory_map.put(instr.address, value);
         }
     }
 
     var memory_it = memory_map.iterator();
-    // log.debug("{} memory addresses contain values", .{ memory_map.count() });
     while (memory_it.next()) |e| {
-        // log.info("mem[{}]={}", .{ e.key, e.value });
+        // log.debug("mem[{}]={}", .{ e.key, e.value });
         sum_in_memory += e.value;
     }
     return sum_in_memory;
 }
 
+const FloatingBit = struct {
+    pos: usize,
+    period: usize,
+};
+
+fn combinations(allocator: *mem.Allocator, bits: [36]u8) !std.ArrayList([36]u8) {
+    var solutions = std.ArrayList([36]u8).init(allocator);
+    const nx = mem.count(u8, bits[0..], "X");
+    const n_solutions = std.math.pow(usize, 2, nx);
+    // log.debug("address {} {}X -> {} solutions", .{ bits, nx, n_solutions });
+
+    // find locations of all floating bits X
+    var floating_bits = std.ArrayList(FloatingBit).init(allocator);
+    var j: usize = 0;
+    var nth: usize = 0; // the n^th floating bit X
+    while (j < bits.len) : (j += 1) {
+        if (bits[j] == 88) {
+            const period = std.math.pow(usize, 2, nth);
+            try floating_bits.append(.{ .pos = j, .period = period });
+            nth += 1;
+        }
+    }
+
+    // replace every X with either 0 or 1
+    var i: usize = 0;
+    while (i < n_solutions) : (i += 1) {
+        var arr: [36]u8 = bits;
+        for (floating_bits.items) |b| {
+            const d = @divTrunc(i, b.period);
+            const bit: u8 = if (d % 2 == 0) 48 else 49;
+            // log.debug("sol {}, bits[{}]=X -> bits[{}]={}", .{ i + 1, b.pos, b.pos, bit });
+            arr[b.pos] = bit;
+        }
+        try solutions.append(arr);
+    }
+    return solutions;
+}
+
+// The result is correct with the sample input, but it's too low for the problem input.
 fn answer2(allocator: *mem.Allocator) !usize {
-    var result: usize = 0;
-    return result;
+    var buf: [36]u8 = undefined;
+    var fbs = std.io.fixedBufferStream(&buf);
+    const out_stream = fbs.writer();
+
+    var mask = Mask.init(allocator);
+    var memory_map = std.AutoHashMap(usize, usize).init(allocator);
+    var sum_in_memory: usize = 0;
+
+    var lines = mem.split(input, "\n");
+    while (lines.next()) |line| {
+        var it = mem.tokenize(line, "[] =");
+        if (mem.eql(u8, "mask", it.next().?)) {
+            try mask.update(it.next().?);
+        } else {
+            const instr = try parseInstruction(it.next().?, it.next().?);
+            const bits_pre = try toBinary(out_stream, instr.address);
+            const bits_post = mask.apply2(bits_pre);
+            const addresses = try combinations(allocator, bits_post);
+            for (addresses.items) |address| {
+                std.debug.assert(address.len == 36);
+                const address_decimal = try toDecimal(address);
+                // log.debug("mem[{}]={}", .{ address_decimal, instr.value });
+                try memory_map.put(address_decimal, instr.value);
+            }
+        }
+    }
+
+    var memory_it = memory_map.iterator();
+    while (memory_it.next()) |e| {
+        // log.debug("mem[{}]={}", .{ e.key, e.value });
+        sum_in_memory += e.value;
+    }
+    return sum_in_memory;
 }
 
 pub fn main() !void {
@@ -156,10 +239,10 @@ test "Day 14, part 1" {
     testing.expectEqual(@intCast(usize, 11926135976176), a);
 }
 
-// test "Day 14, part 2" {
-//     var arena = heap.ArenaAllocator.init(heap.page_allocator);
-//     defer arena.deinit();
-//     const a = try answer2(&arena.allocator);
-//     // testing.expectEqual(@intCast(i32, 8), a);
-//     testing.expectEqual(@intCast(i32, 1235), a);
-// }
+test "Day 14, part 2" {
+    var arena = heap.ArenaAllocator.init(heap.page_allocator);
+    defer arena.deinit();
+    const a = try answer2(&arena.allocator);
+    // testing.expectEqual(@intCast(usize, 208), a);
+    testing.expectEqual(@intCast(usize, 4330547254348), a);
+}
