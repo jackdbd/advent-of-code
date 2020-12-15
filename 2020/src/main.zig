@@ -5,7 +5,7 @@ const utils = @import("utils.zig");
 const module_names = [_][]const u8{
     "01.zig", "02.zig", "03.zig", "04.zig", "05.zig",
     "06.zig", "07.zig", "08.zig", "09.zig", "10.zig",
-    "11.zig", "12.zig", "13.zig", "14.zig",
+    "11.zig", "12.zig", "13.zig", "14.zig", "15.zig",
 };
 
 pub fn main() !void {
