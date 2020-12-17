@@ -11,6 +11,7 @@ const Coord = struct {
     x: isize,
     y: isize,
     z: isize,
+    w: isize,
 };
 
 const Boundary = struct {
@@ -25,17 +26,28 @@ const Grid = struct {
     map: std.AutoHashMap(Coord, ?bool),
 };
 
-fn neighbors(allocator: *mem.Allocator, c: Coord) !std.ArrayList(Coord) {
+fn neighbors(allocator: *mem.Allocator, c: Coord, four_d: bool) !std.ArrayList(Coord) {
     var list = std.ArrayList(Coord).init(allocator);
     for ([3]isize{ -1, 0, 1 }) |dx| {
         for ([3]isize{ -1, 0, 1 }) |dy| {
             for ([3]isize{ -1, 0, 1 }) |dz| {
-                if (dx == 0 and dy == 0 and dz == 0) continue; // a cube is not a neighbor of itself
-                try list.append(Coord{ .x = c.x + dx, .y = c.y + dy, .z = c.z + dz });
+                if (four_d) {
+                    for ([3]isize{ -1, 0, 1 }) |dw| {
+                        if (dx == 0 and dy == 0 and dz == 0 and dw == 0) continue; // a hypercube is not a neighbor of itself
+                        try list.append(Coord{ .x = c.x + dx, .y = c.y + dy, .z = c.z + dz, .w = c.w + dw });
+                    }
+                } else {
+                    if (dx == 0 and dy == 0 and dz == 0) continue; // a cube is not a neighbor of itself
+                    try list.append(Coord{ .x = c.x + dx, .y = c.y + dy, .z = c.z + dz, .w = 0 });
+                }
             }
         }
     }
-    std.debug.assert(list.items.len == 26);
+    if (four_d) {
+        std.debug.assert(list.items.len == 80);
+    } else {
+        std.debug.assert(list.items.len == 26);
+    }
     return list;
 }
 
@@ -63,15 +75,15 @@ fn startingGrid(allocator: *mem.Allocator) !Grid {
         while (col < ncols) : (col += 1) {
             const x = @intCast(isize, col);
             const y = @intCast(isize, row);
-            const coord = Coord{ .x = x, .y = y, .z = 0 };
+            const coord = Coord{ .x = x, .y = y, .z = 0, .w = 0 };
             const is_active = if (lines[row][col] == '#') true else false;
             try map.put(coord, is_active);
         }
     }
 
     const boundary = Boundary{
-        .min = Coord{ .x = 0, .y = 0, .z = 0 },
-        .max = Coord{ .x = @intCast(isize, nrows - 1), .y = @intCast(isize, ncols - 1), .z = 0 },
+        .min = Coord{ .x = 0, .y = 0, .z = 0, .w = 0 },
+        .max = Coord{ .x = @intCast(isize, nrows - 1), .y = @intCast(isize, ncols - 1), .z = 0, .w = 0 },
     };
 
     return Grid{
@@ -89,17 +101,19 @@ fn enlargedBoundary(b: Boundary, size: isize) Boundary {
             .x = b.min.x - size,
             .y = b.min.y - size,
             .z = b.min.z - size,
+            .w = b.min.w - size,
         },
         .max = Coord{
             .x = b.max.x + size,
             .y = b.max.y + size,
             .z = b.max.z + size,
+            .w = b.max.w + size,
         },
     };
 }
 
 /// Produce a new grid without altering the old one.
-fn step(allocator: *mem.Allocator, grid: Grid) !Grid {
+fn step(allocator: *mem.Allocator, grid: Grid, four_d: bool) !Grid {
     // define the search space for the new, bigger grid
     const b = enlargedBoundary(grid.boundary, grid.neighbor_size);
     var map = std.AutoHashMap(Coord, ?bool).init(allocator);
@@ -109,9 +123,17 @@ fn step(allocator: *mem.Allocator, grid: Grid) !Grid {
         while (y >= b.min.y and y <= b.max.y) : (y += 1) {
             var z = b.min.z;
             while (z >= b.min.z and z <= b.max.z) : (z += 1) {
-                const new_coord = Coord{ .x = x, .y = y, .z = z };
-                // log.debug("[{},{},{}]", .{ x, y, z });
-                try map.put(new_coord, null);
+                if (four_d) {
+                    var w = b.min.w;
+                    while (w >= b.min.w and w <= b.max.w) : (w += 1) {
+                        const new_coord = Coord{ .x = x, .y = y, .z = z, .w = w };
+                        try map.put(new_coord, null);
+                    }
+                } else {
+                    const new_coord = Coord{ .x = x, .y = y, .z = z, .w = 0 };
+                    // log.debug("[{},{},{}]", .{ x, y, z });
+                    try map.put(new_coord, null);
+                }
             }
         }
     }
@@ -124,7 +146,7 @@ fn step(allocator: *mem.Allocator, grid: Grid) !Grid {
         // represents coordinates that were outside of the search space.
         const active = grid.map.get(coord);
         var active_neighbors: usize = 0;
-        const neighbor_coords = try neighbors(allocator, coord);
+        const neighbor_coords = try neighbors(allocator, coord, four_d);
         for (neighbor_coords.items) |n| {
             const is_neighbor_active = grid.map.get(n);
             if (is_neighbor_active != null) {
@@ -163,7 +185,7 @@ fn step(allocator: *mem.Allocator, grid: Grid) !Grid {
 }
 
 /// Recursively produce a new grid for each boot cycle.
-fn boot(allocator: *mem.Allocator, grid: Grid, i: usize) !usize {
+fn boot(allocator: *mem.Allocator, four_d: bool, grid: Grid, i: usize) !usize {
     if (i == 0) {
         var active_cubes: usize = 0;
         var it = grid.map.iterator();
@@ -173,18 +195,18 @@ fn boot(allocator: *mem.Allocator, grid: Grid, i: usize) !usize {
         }
         return active_cubes;
     }
-    const new_grid = try step(allocator, grid);
-    return boot(allocator, new_grid, i - 1);
+    const new_grid = try step(allocator, grid, four_d);
+    return boot(allocator, four_d, new_grid, i - 1);
 }
 
 fn answer1(allocator: *mem.Allocator) !usize {
     const grid = try startingGrid(allocator);
-    return try boot(allocator, grid, 6);
+    return try boot(allocator, false, grid, 6);
 }
 
 fn answer2(allocator: *mem.Allocator) !usize {
-    var result: usize = 0;
-    return result;
+    const grid = try startingGrid(allocator);
+    return try boot(allocator, true, grid, 6);
 }
 
 pub fn main() !void {
@@ -195,9 +217,9 @@ pub fn main() !void {
     defer arena.deinit();
 
     const a1 = try answer1(&arena.allocator);
-    // const a2 = try answer2(&arena.allocator);
+    const a2 = try answer2(&arena.allocator);
     log.info("Part 1: {}", .{a1});
-    // log.info("Part 2: {}", .{a2});
+    log.info("Part 2: {}", .{a2});
 
     const t1 = timer.lap();
     const elapsed_s = @intToFloat(f64, t1 - t0) / std.time.ns_per_s;
@@ -214,10 +236,10 @@ test "Day 17, part 1" {
     testing.expectEqual(@intCast(usize, 333), a);
 }
 
-// test "Day 17, part 2" {
-//     var arena = heap.ArenaAllocator.init(heap.page_allocator);
-//     defer arena.deinit();
-//     const a = try answer2(&arena.allocator);
-//     // testing.expectEqual(@intCast(i32, 8), a);
-//     testing.expectEqual(@intCast(i32, 1235), a);
-// }
+test "Day 17, part 2" {
+    var arena = heap.ArenaAllocator.init(heap.page_allocator);
+    defer arena.deinit();
+    const a = try answer2(&arena.allocator);
+    // testing.expectEqual(@intCast(usize, 848), a);
+    testing.expectEqual(@intCast(usize, 2676), a);
+}
