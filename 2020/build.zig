@@ -2,7 +2,7 @@ const std = @import("std");
 const fmt = std.fmt;
 const Builder = std.build.Builder;
 
-pub fn build(b: *Builder) void {
+pub fn build(b: *Builder) !void {
     // Standard target options allows the person running `zig build` to choose
     // what target to build for. Here we do not override the defaults, which
     // means any target is allowed, and the default is native. Other options
@@ -37,12 +37,18 @@ pub fn build(b: *Builder) void {
         run_step.dependOn(&run_cmd.step);
 
         // Day tests
-        const test_step_name = fmt.allocPrint(b.allocator, "test-day{:0>2}", .{ day }) catch unreachable;
-        const test_desc = fmt.allocPrint(b.allocator, "Run day {} tests", .{ day }) catch unreachable;
+        const test_step_name = try fmt.allocPrint(b.allocator, "test-day{:0>2}", .{ day });
+        const test_desc = try fmt.allocPrint(b.allocator, "Run day {} tests", .{ day });
         const day_tests = b.addTest(src);
         day_tests.setBuildMode(mode);
         const test_step = b.step(test_step_name, test_desc);
         test_step.dependOn(&day_tests.step);
+
+        // utils tests
+        const utils_tests = b.addTest("src/utils.zig");
+        utils_tests.setBuildMode(mode);
+        const test_utils_step = b.step("test-utils", "Run utils.zig tests");
+        test_utils_step.dependOn(&utils_tests.step);
     }
 
     const exe_name = "2020";
@@ -63,11 +69,9 @@ pub fn build(b: *Builder) void {
     const run_step = b.step(run_step_name, "Run all Advent of Code 2020 programs");
     run_step.dependOn(&run_cmd.step);
 
-    // All tests
-    const test_step_name = "test";
+    // TODO: command to run all tests (for now it runs no tests)
     const main_tests = b.addTest(src);
     main_tests.setBuildMode(mode);
-
-    const test_step = b.step(test_step_name, "Run all tests");
+    const test_step = b.step("test", "Run all tests");
     test_step.dependOn(&main_tests.step);
 }
