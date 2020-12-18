@@ -33,6 +33,22 @@ fn solve(expr: []const u8) fmt.ParseIntError!usize {
     }
     return res;
 }
+/// Error set for my recursive functions.
+/// Note: I need to declare an explicit error set because in zig recursive
+/// functions cannot have inferred error sets.
+/// https://github.com/ziglang/zig/issues/763
+/// As far as I know, there are at least two ways to define an error set.
+// 1st syntax
+const MyError = fmt.ParseIntError || fmt.AllocPrintError;
+// or, since in zig/lib/std/fmt.zig we have:
+// pub const ParseIntError = error{ Overflow, InvalidCharacter }; and
+// pub const AllocPrintError = error{OutOfMemory};
+// 2nd syntax
+// const MyError = error{
+//     InvalidCharacter,
+//     Overflow,
+//     OutOfMemory,
+// };
 
 /// Compute a math expression that has no parentheses, but where the + operator
 /// has precedence over the * operator.
@@ -59,19 +75,9 @@ fn solvePart2(allocator: *mem.Allocator, expr: []const u8) MyError!usize {
     const n = solve(expr[i_left..i_right]);
     const right = expr[i_right..];
     const next_expr = try fmt.allocPrint(allocator, "{}{}{}", .{ left, n, right });
+    defer allocator.free(next_expr);
     return solvePart2(allocator, next_expr);
 }
-
-// TODO: find out how to use ParseIntError, not Overflow and InvalidCharacter
-// ParseIntError = union of Overflow and InvalidCharacter
-const MyError = error{
-    // ParseIntError
-    InvalidCharacter,
-    Overflow,
-
-    // AllocPrintError
-    OutOfMemory,
-};
 
 /// Recursively simplify a math expression, solving operations between parentheses.
 fn simplifyAndSolve(allocator: *mem.Allocator, is_part_1: bool, expr: []const u8) MyError!usize {
@@ -99,6 +105,7 @@ fn simplifyAndSolve(allocator: *mem.Allocator, is_part_1: bool, expr: []const u8
         }
         const right = expr[i_stop + 1 ..];
         const next_expr = try fmt.allocPrint(allocator, "{}{}{}", .{ left, n, right });
+        defer allocator.free(next_expr);
         // log.debug("next_expr {}", .{next_expr});
         return try simplifyAndSolve(allocator, is_part_1, next_expr);
     }
@@ -140,6 +147,41 @@ pub fn main() !void {
 }
 
 const testing = std.testing;
+
+test "Day 18, solve" {
+    testing.expectEqual(@as(usize, 9), try solve("1 + 2 * 3"));
+}
+
+test "Day 18, solve (errors)" {
+    testing.expectError(error.InvalidCharacter, solve("1 + a"));
+    testing.expectError(error.Overflow, solve("1 + 99999999999999999999"));
+}
+
+test "Day 18, solvePart2" {
+    var allocator = std.testing.allocator;
+    const n = try solvePart2(allocator, "1 + 2 * 3 + 4");
+    testing.expectEqual(@as(usize, 21), n);
+}
+
+test "Day 18, solvePart2 (errors)" {
+    var allocator = std.testing.allocator;
+    testing.expectError(error.InvalidCharacter, solvePart2(allocator, "1 + a"));
+    testing.expectError(error.Overflow, solvePart2(allocator, "1 + 99999999999999999999"));
+}
+
+test "Day 18, simplifyAndSolve (part 1)" {
+    var allocator = std.testing.allocator;
+    const is_part_1 = true;
+    const n = try simplifyAndSolve(allocator, is_part_1, "5 * 9 * (7 * 3 * 3 + 9 * 3 + (8 + 6 * 4))");
+    testing.expectEqual(@as(usize, 12240), n);
+}
+
+test "Day 18, simplifyAndSolve (part 2)" {
+    var allocator = std.testing.allocator;
+    const is_part_1 = false;
+    const n = try simplifyAndSolve(allocator, is_part_1, "5 * 9 * (7 * 3 * 3 + 9 * 3 + (8 + 6 * 4))");
+    testing.expectEqual(@as(usize, 669060), n);
+}
 
 test "Day 18, part 1" {
     var arena = heap.ArenaAllocator.init(heap.page_allocator);
