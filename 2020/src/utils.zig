@@ -95,6 +95,24 @@ pub fn manhattan(p0: Pos, p1: Pos) usize {
     return math.absCast(p1.x - p0.x) + math.absCast(p1.y - p0.y);
 }
 
+/// Check whether string `a` comes before string `b` alphabetically.
+/// Useful when sorting strings.
+/// std.sort.sort([]const u8, list.items, {}, comptime lessThan);
+pub fn lessThan(foo: void, a: []const u8, b: []const u8) bool {
+    var min = std.math.min(a.len, b.len);
+    var i: usize = 0;
+    while (i < min) : (i += 1) {
+        // log.debug("a[{}]={} b[{}]={}", .{i, a[i], i, b[i]});
+        if (a[i] < b[i]) {
+            return true;
+        } else if (a[i] > b[i]) {
+            return false;
+        }
+    }
+    // a and b match up to the i-th element, so the shortest string wins.
+    return a.len < b.len;
+}
+
 // const flags = .{ .read = true };
 // const flags = .{ };
 // var src_file = try source_dir.openFile("sample0.txt", flags);
@@ -161,4 +179,13 @@ test "readFileLinesIter" {
     // so I ensure zig that iter.index is indeed not null.
     const idx: u64 = iter.index orelse unreachable;
     testing.expectEqual(@as(u64, 5), idx);
+}
+
+test "lessThan" {
+    testing.expectEqual(false, lessThan({}, "foo", "bar"));
+    testing.expectEqual(true, lessThan({}, "bar", "foo"));
+    testing.expectEqual(true, lessThan({}, "bar", "barb"));
+    testing.expectEqual(false, lessThan({}, "barb", "bar"));
+    testing.expectEqual(false, lessThan({}, "barb", "barb"));
+    testing.expectEqual(true, lessThan({}, "barb", "barba"));
 }
