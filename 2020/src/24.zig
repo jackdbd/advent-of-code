@@ -18,10 +18,25 @@ const AxialCoord = struct {
         const y = -x - z;
         return .{ .x = x, .y = y, .z = z };
     }
+
+    /// Neighbors of an axial coordinate
+    /// https://www.redblobgames.com/grids/hexagons/#neighbors
+    fn neighbors(self: *Self) [6]AxialCoord {
+        return [6]AxialCoord{
+            AxialCoord{ .q = 1, .r = -1 },
+            AxialCoord{ .q = 1, .r = 0 },
+            AxialCoord{ .q = 0, .r = 1 },
+            AxialCoord{ .q = -1, .r = 1 },
+            AxialCoord{ .q = -1, .r = 0 },
+            AxialCoord{ .q = 0, .r = -1 },
+        };
+    }
 };
 
 /// Cube coordinate for a hexagon grid that has a pointy topped orientation.
 /// https://www.redblobgames.com/grids/hexagons/#coordinates-cube
+/// Note: I tried to use cube coordinates first, and they are fine for part 1,
+/// but I need to use axial coordinates to solve part 2 in a reasonable time.
 const CubeCoord = struct {
     x: isize,
     y: isize,
@@ -31,9 +46,90 @@ const CubeCoord = struct {
     fn toAxialCoord(self: *Self) AxialCoord {
         return AxialCoord{ .q = self.x, .r = self.z };
     }
+
+    /// Neighbors of a cube coordinate
+    /// https://www.redblobgames.com/grids/hexagons/#neighbors
+    fn neighbors(self: *Self) [6]CubeCoord {
+        return [6]CubeCoord{
+            CubeCoord{ .x = 1, .y = 0, .z = -1 },
+            CubeCoord{ .x = 1, .y = -1, .z = 0 },
+            CubeCoord{ .x = 0, .y = -1, .z = 1 },
+            CubeCoord{ .x = -1, .y = 0, .z = 1 },
+            CubeCoord{ .x = -1, .y = 1, .z = 0 },
+            CubeCoord{ .x = 0, .y = 1, .z = -1 },
+        };
+    }
 };
 
-const TileMap = std.AutoHashMap(CubeCoord, bool);
+const TileMapCube = std.AutoHashMap(CubeCoord, bool);
+const TileMapAxial = std.AutoHashMap(AxialCoord, bool);
+
+fn setTileMapCube(map: *TileMapCube) !void {
+    var lines = mem.split(input, "\n");
+    while (lines.next()) |line| {
+        var tile_coord = TileCoord.fromLine(line);
+        var cube_coord = tile_coord.toCubeCoord();
+        const b = map.get(cube_coord); // false = white side up, true = black side up
+        if (b != null) {
+            try map.put(cube_coord, !b.?);
+        } else {
+            try map.put(cube_coord, true);
+        }
+    }
+}
+
+fn setTileMapAxial(map: *TileMapAxial) !void {
+    var lines = mem.split(input, "\n");
+    while (lines.next()) |line| {
+        var tile_coord = TileCoord.fromLine(line);
+        var axial_coord = tile_coord.toCubeCoord().toAxialCoord();
+        const b = map.get(axial_coord); // false = white side up, true = black side up
+        if (b != null) {
+            try map.put(axial_coord, !b.?);
+        } else {
+            try map.put(axial_coord, true);
+        }
+    }
+}
+
+/// Fill with white tiles any missing holes in an hexagonal grid.
+/// Note: this is extremely inefficient, especially for cube coordinates. Is
+/// there a better way?
+fn fillUpWithWhiteTiles(map: *TileMapAxial) !void {
+    const tiles_pre = map.count();
+    const blacks_before = countBlackTilesAxial(map);
+    var q_min: isize = 0;
+    var q_max: isize = 0;
+    var r_min: isize = 0;
+    var r_max: isize = 0;
+
+    // I really don't know why I need to expand the grid by at least this amout.
+    const expand = 50;
+
+    var it = map.iterator();
+    while (it.next()) |e| {
+        const c = e.key;
+        if (c.q < q_min) q_min = c.q - expand;
+        if (c.q > q_max) q_max = c.q + expand;
+        if (c.r < r_min) r_min = c.r - expand;
+        if (c.r > r_max) r_max = c.r + expand;
+    }
+
+    var q = q_min;
+    while (q <= q_max) : (q += 1) {
+        var r = r_min;
+        while (r <= r_max) : (r += 1) {
+            const c = AxialCoord{ .q = q, .r = r };
+            const color = map.get(c) orelse false; // false means white
+            try map.put(c, color);
+        }
+    }
+    const tiles_after = map.count();
+    const blacks_after = countBlackTilesAxial(map);
+    std.debug.assert(tiles_after >= tiles_pre);
+    std.debug.assert(blacks_after == blacks_before);
+    // log.debug("q: [{},{}] r: [{},{}]", .{ q_min, q_max, r_min, r_max });
+}
 
 /// Coordinate expressed in the cardinal directions East, North-West, South-West
 /// (West = -East, South-East = - North-West, North-East = - South-West)
@@ -95,36 +191,85 @@ const TileCoord = struct {
     }
 };
 
-fn answer1(allocator: *mem.Allocator) !usize {
-    var map = TileMap.init(allocator);
-    defer map.deinit();
-
-    var lines = mem.split(input, "\n");
-    while (lines.next()) |line| {
-        var tile_coord = TileCoord.fromLine(line);
-        var cube_coord = tile_coord.toCubeCoord();
-        // log.debug("{} => {}", .{tile_coord, cube_coord});
-        const b = map.get(cube_coord);
-        if (b != null) {
-            // log.debug("Tile {} already flipped {}. Flipping it to {}", .{cube_coord, b, !b.?});
-            try map.put(cube_coord, !b.?);
-        } else {
-            try map.put(cube_coord, true);
-        }
-    }
-
-    var black_tiles: usize = 0;
+fn countBlackTilesCube(map: *TileMapCube) usize {
+    var count: usize = 0;
     var it = map.iterator();
     while (it.next()) |e| {
-        // log.debug("{}", .{e.value});
-        if (e.value == true) black_tiles += 1;
+        if (e.value == true) count += 1;
     }
-    return black_tiles;
+    return count;
+}
+
+fn countBlackTilesAxial(map: *TileMapAxial) usize {
+    var count: usize = 0;
+    var it = map.iterator();
+    while (it.next()) |e| {
+        if (e.value == true) count += 1;
+    }
+    return count;
+}
+
+fn answer1(allocator: *mem.Allocator) !usize {
+    var map = TileMapCube.init(allocator);
+    defer map.deinit();
+    try setTileMapCube(&map);
+    return countBlackTilesCube(&map);
+}
+
+/// Every day the floor tiles are flipped according to a set of rules.
+/// Keep in mind that every tile starts with the white side up.
+fn exhibit(day: usize, src: *TileMapAxial, dst: *TileMapAxial) !void {
+    try fillUpWithWhiteTiles(src);
+    var it_src = src.iterator();
+    var i: usize = 0;
+    while (it_src.next()) |e| {
+        var c = e.key;
+        const is_black = e.value;
+        const tile_color = if (is_black) "black" else "white";
+
+        var blacks: usize = 0; // neighbor tiles with the black side up
+        const nn = c.neighbors();
+        for (nn) |n| {
+            const c0 = AxialCoord{ .q = c.q + n.q, .r = c.r + n.r };
+            const is_neighbor_black = src.get(c0) orelse false;
+            const color = if (is_neighbor_black) "black" else "white";
+            if (is_neighbor_black) blacks += 1;
+        }
+
+        if (is_black and (blacks == 0 or blacks > 2)) {
+            try dst.put(c, false);
+        } else if (!is_black and blacks == 2) {
+            try dst.put(c, true);
+        } else {
+            try dst.put(c, is_black);
+        }
+        i += 1;
+    }
 }
 
 fn answer2(allocator: *mem.Allocator) !usize {
-    var result: usize = 0;
-    return result;
+    var src = TileMapAxial.init(allocator);
+    defer src.deinit();
+    var dst = TileMapAxial.init(allocator);
+    defer dst.deinit();
+
+    try setTileMapAxial(&src);
+
+    var day: usize = 1;
+    var black_tiles: usize = 0;
+    while (day <= 100) : (day += 1) {
+        if (day % 2 != 0) {
+            try exhibit(day, &src, &dst);
+            black_tiles = countBlackTilesAxial(&dst);
+            // log.debug("Black tiles after {} days: {}", .{ day, countBlackTilesAxial(&dst) });
+        } else {
+            try exhibit(day, &dst, &src);
+            black_tiles = countBlackTilesAxial(&src);
+            // log.debug("Black tiles after {} days: {}", .{ day, countBlackTilesAxial(&src) });
+        }
+    }
+
+    return black_tiles;
 }
 
 pub fn main() !void {
@@ -183,5 +328,6 @@ test "Day 24, part 1" {
 
 test "Day 24, part 2" {
     const a = try answer2(testing.allocator);
-    testing.expectEqual(@intCast(usize, 0), a);
+    // testing.expectEqual(@intCast(usize, 2208), a);
+    testing.expectEqual(@intCast(usize, 3531), a);
 }
