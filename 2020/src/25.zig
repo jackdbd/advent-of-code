@@ -41,11 +41,6 @@ fn answer1(allocator: *mem.Allocator) !usize {
     return encryption_key;
 }
 
-fn answer2(allocator: *mem.Allocator) !usize {
-    var result: usize = 0;
-    return result;
-}
-
 pub fn main() !void {
     var timer = try std.time.Timer.start();
     const t0 = timer.lap();
@@ -53,10 +48,8 @@ pub fn main() !void {
     var arena = heap.ArenaAllocator.init(heap.page_allocator);
     defer arena.deinit();
 
-    const a1 = try answer1(&arena.allocator);
-    const a2 = try answer2(&arena.allocator);
-    log.info("Part 1: {}", .{a1});
-    log.info("Part 2: {}", .{a2});
+    const a = try answer1(&arena.allocator);
+    log.info("Part 1 (there is no part 2): {}", .{a});
 
     const t1 = timer.lap();
     const elapsed_s = @intToFloat(f64, t1 - t0) / std.time.ns_per_s;
@@ -76,14 +69,7 @@ test "encryption key" {
     testing.expectEqual(loop(door_public_key, 8), loop(card_public_key, 11));
 }
 
-test "Day 25, part 1" {
+test "Day 25" {
     const a = try answer1(testing.allocator);
     testing.expectEqual(@intCast(usize, 19414467), a);
-}
-
-test "Day 25, part 2" {
-    var arena = heap.ArenaAllocator.init(heap.page_allocator);
-    defer arena.deinit();
-    const a = try answer2(&arena.allocator);
-    testing.expectEqual(@intCast(usize, 0), a);
 }
