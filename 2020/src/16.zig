@@ -175,6 +175,7 @@ fn answer1(allocator: *mem.Allocator) !usize {
 }
 
 // I don't know how to use a set in zig, so I use a hash map with a value of null
+// UPDATE: use std.BufSet next time
 const CandidatesMap = std.AutoHashMap([]const u8, void);
 
 const PositionCandidatesMap = std.AutoHashMap(usize, CandidatesMap);
